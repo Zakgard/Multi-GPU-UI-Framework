@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <algorithm>
 #include "ParticleEmitter.h"
 #include "GameObject.h"
 #include "MathHelper.h"
