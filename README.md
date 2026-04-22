@@ -1,12 +1,15 @@
 # DX12
 
-This project is my master's thesis. Developed in collaboration with ITMO (https://itmo.ru/ru/) and Sperasoft (https://sperasoft.ru/) https://docs.google.com/presentation/d/16dh4ahcwjb1cMhcog0ikniztRQmwZcg1qDvM6XA27mo/edit#slide=id.p1
+This project is my master's thesis. Developed in collaboration with ITMO (https://itmo.ru/ru/) 
 
 
 ## Shared User Interface Blending
-![SUIB](Readme/SharedUserInterface.png)
+![SUIB](data_scheme.png)
 # Result
-![SUIBResult](Readme/SharedUserInterfaceResult.png)
+![SUIBResult](diagram0.png)
+![SUIBResult](diagram2.png)
+![SUIBResult](diagram3.png)
+![SUIBResult](diagram4.png)
 
 
 For the project you need:
