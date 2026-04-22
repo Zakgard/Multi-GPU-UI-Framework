@@ -5,6 +5,10 @@ This project is my master's thesis. Developed in collaboration with ITMO (https:
 
 ## Shared User Interface Blending
 ![SUIB](data_scheme.png)
+
+# Scene View
+![SUIB](overall_view.png)]
+
 # Result
 ![SUIBResult](diagram0.png)
 ![SUIBResult](diagram2.png)
