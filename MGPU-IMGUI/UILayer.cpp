@@ -146,7 +146,73 @@ void UILayer::SetFPS(float FPS)
 
 void UILayer::InitializeBlurResources()
 {
+    GRootSignature blurSignature;
 
+    // Параметр 0: Константы (BlurSettings - 4 штуки uint32_t)
+    blurSignature.AddConstantParameter(sizeof(BlurSettings) / sizeof(uint32_t), 0);
+
+    // Параметр 1: SRV (Текстура для чтения - t0)
+    CD3DX12_DESCRIPTOR_RANGE srvRange;
+    srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+    blurSignature.AddDescriptorParameter(&srvRange, 1);
+
+    // Параметр 2: UAV (Текстура для записи - u0)
+    CD3DX12_DESCRIPTOR_RANGE uavRange;
+    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+    blurSignature.AddDescriptorParameter(&uavRange, 1);
+
+    blurSignature.Initialize(device);
+
+    // Загружаем наш новый объединенный шейдер
+    blurShader = GShader(L"Shaders\\BlurFX.hlsl", ComputeShader, nullptr, "CSMain", "cs_5_1");
+    blurShader.LoadAndCompile();
+
+    // Создаем PSO
+    blurPSO = ComputePSO();
+    blurPSO.SetRootSignature(blurSignature);
+    blurPSO.SetShader(&blurShader);
+    blurPSO.Initialize(device);
+
+    D3D12_RESOURCE_DESC texDesc;
+    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    texDesc.Alignment = 0;
+    texDesc.Width = mapPicSizeX; // Замените на pictureSizeX
+    texDesc.Height = mapPicSizeY; // Замените на pictureSizeY
+    texDesc.DepthOrArraySize = 1;
+    texDesc.MipLevels = 1;
+    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texDesc.SampleDesc.Count = 1;
+    texDesc.SampleDesc.Quality = 0;
+    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS; // Важно для UAV!
+
+    blurredIconTex = GTexture(device, texDesc, L"Blurred Icon Tex");
+
+    // Выделяем дескрипторы (у вас это делается через AllocateDescriptors)
+    blurredIconUAV = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+    blurredIconSRV = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
+    // Создаем UAV (для записи из шейдера)
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    blurredIconTex.CreateUnorderedAccessView(&uavDesc, &blurredIconUAV);
+
+    // Создаем SRV (для чтения в ImGui)
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Texture2D.MipLevels = 1;
+    blurredIconTex.CreateShaderResourceView(&srvDesc, &blurredIconSRV);
+
+    blurredIconTex2 = GTexture(device, texDesc, L"Blurred Icon Tex 2");
+
+    blurredIconUAV2 = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+    blurredIconSRV2 = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
+    blurredIconTex2.CreateUnorderedAccessView(&uavDesc, &blurredIconUAV2);
+    blurredIconTex2.CreateShaderResourceView(&srvDesc, &blurredIconSRV2);
 }
 
 void UILayer::InitCircleBar(float value, float radius = 40.0f, const ImVec2& centrePos = ImVec2(0, 0), const ImVec4& fillColor = ImVec4(0, 0, 1, 1), const ImVec4& emptyColor = ImVec4(0, 0, 0, 0.5f), float thickness = 6.0f)
@@ -248,13 +314,13 @@ void UILayer::DrawRightBar()
 
 void UILayer::DrawRightTopBar()
 {
-    ImGui::SetNextWindowPos(ImVec2(displaySize.x - paddingX - 200.0f, paddingY));
+    ImGui::SetNextWindowPos(ImVec2(displaySize.x - paddingX - 300.0f, paddingY));
     ImGui::SetNextWindowSize(ImVec2(400, 450));
     ImGui::Begin("RightTopPanel", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
     // 5.1 Миникарта
-    ImGui::ImageButton((void*)(intptr_t)skillPicturesDescriptors[36].GetGPUHandle().ptr, ImVec2(180.0f, 60.0f), ImVec2(0, 0), ImVec2(1, 1), 0); // Замени на текстуру миникарты
-    ApplyGradientAndStarsEffect(ImVec2(iconSize, iconSize), baseColors[currentColorIndex], endColors[currentColorIndex]);
-    currentColorIndex++;
+    ImGui::ImageButton((void*)(intptr_t)blurredIconSRV.GetGPUHandle().ptr, ImVec2(256.0f, 256.0f), ImVec2(0, 0), ImVec2(1, 1), 0); // Замени на текстуру миникарты
+  //  ApplyGradientAndStarsEffect(ImVec2(iconSize, iconSize), baseColors[currentColorIndex], endColors[currentColorIndex]);
+   // currentColorIndex++;
     // 5.2 Текущее время
     ImGui::Text("Время: %s", L"22:34");
     ImGui::End();
@@ -281,8 +347,6 @@ void UILayer::DrawRightMiddlePanel()
 
 void UILayer::DrawBottomPanel()
 {
-
-
     float centerX = (displaySize.x - 17 * iconSize) / 2.0f;
 
     ImGui::SetNextWindowPos(ImVec2(centerX, displaySize.y - paddingY - 2 * iconSize - barHeight + bottomPosOffset - 100));
@@ -357,8 +421,66 @@ void UILayer::AddColorToButton(float glow)
 
 }
 
-void UILayer::BlurIcon(ImVec2 iconPos, ImVec2 size)
+void UILayer::BlurIcon(ImVec2 iconPos, ImVec2 size, const std::shared_ptr<GCommandList>& cmdList)
 {
+    int passes = 100;
+    if (!map || size.x <= 0 || size.y <= 0 || passes <= 0) return;
+
+    BlurSettings settings = {};
+    settings.width = static_cast<uint32_t>(size.x);
+    settings.height = static_cast<uint32_t>(size.y);
+    settings.blurRadius = 5;
+
+    uint32_t dispatchX = (settings.width + 7) / 8;
+    uint32_t dispatchY = (settings.height + 7) / 8;
+
+    cmdList->SetDescriptorsHeap(&mapPicture);
+    cmdList->SetPipelineState(blurPSO);
+    cmdList->SetRoot32BitConstants(0, sizeof(BlurSettings) / sizeof(uint32_t), &settings, 0);
+
+    // Умный выбор: если проходов четное количество (2, 4), начинаем писать во вторую текстуру,
+    // чтобы последний (финальный) проход ВСЕГДА попадал в оригинальную blurredIconTex.
+    bool writeToTex1 = (passes % 2 != 0);
+
+    // === ПЕРВЫЙ ПРОХОД (Всегда читаем из оригинальной map) ===
+    ID3D12Resource* firstWriteTex = writeToTex1 ? blurredIconTex.GetD3D12Resource().Get() : blurredIconTex2.GetD3D12Resource().Get();
+    GDescriptor* firstWriteUAV = writeToTex1 ? &blurredIconUAV : &blurredIconUAV2;
+
+    cmdList->TransitionBarrier(firstWriteTex, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cmdList->FlushResourceBarriers();
+
+    cmdList->SetRootDescriptorTable(1, &mapPicture);
+    cmdList->SetRootDescriptorTable(2, firstWriteUAV);
+    cmdList->Dispatch(dispatchX, dispatchY, 1);
+
+    // === ПОСЛЕДУЮЩИЕ ПРОХОДЫ (Пинг-Понг) ===
+    for (int i = 1; i < passes; ++i)
+    {
+        writeToTex1 = !writeToTex1; // Переключаем буфер
+
+        ID3D12Resource* readTex = writeToTex1 ? blurredIconTex2.GetD3D12Resource().Get() : blurredIconTex.GetD3D12Resource().Get();
+        ID3D12Resource* writeTex = writeToTex1 ? blurredIconTex.GetD3D12Resource().Get() : blurredIconTex2.GetD3D12Resource().Get();
+
+        GDescriptor* readSRV = writeToTex1 ? &blurredIconSRV2 : &blurredIconSRV;
+        GDescriptor* writeUAV = writeToTex1 ? &blurredIconUAV : &blurredIconUAV2;
+
+        // Ставим барьеры для текущей итерации
+        cmdList->TransitionBarrier(readTex, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier(writeTex, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        cmdList->FlushResourceBarriers();
+
+        cmdList->SetRootDescriptorTable(1, readSRV);
+        cmdList->SetRootDescriptorTable(2, writeUAV);
+        cmdList->Dispatch(dispatchX, dispatchY, 1);
+    }
+
+    // === ФИНАЛИЗАЦИЯ ===
+    // Возвращаем обе текстуры в базовое состояние для отрисовки интерфейсом
+    cmdList->TransitionBarrier(blurredIconTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+    if (passes > 1) {
+        cmdList->TransitionBarrier(blurredIconTex2.GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+    }
+    cmdList->FlushResourceBarriers();
 }
 
 ComPtr<ID3D12Resource> CreateUploadBuffer(ID3D12Device* device, UINT64 size)
@@ -655,6 +777,12 @@ void UILayer::RenderEffects(const std::shared_ptr<GCommandQueue>& queue) noexcep
     totalTime += deltaTime * mod;
 
     const auto barVal = totalTime * (740.0f / 8096.0f);
+    BlurIcon(
+        ImVec2(0, 0),       // Позиция здесь не нужна для Compute Shader, если мы блюрим всю текстуру
+        ImVec2(mapPicSizeX, mapPicSizeY),   // Размеры текстуры
+        cmdList
+    );
+
     UpdateHBBar(cmdList, barVal);
 
     queue->ExecuteCommandList(cmdList);
@@ -692,10 +820,14 @@ void UILayer::SetTexture()
         loader.get()->LoadTextureFromFile(NAVIGATION_ICONS_PLACEMENTS[i], device->GetDXDevice().Get(), uiNavigationPicturesDescriptors[i].GetCPUHandle(), &my_textures[i], &pictureSizeX, &pictureSizeY);
     }
 
+    mapPicture = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+    loader.get()->LoadTextureFromFile(MAP_PLACEMENT, device->GetDXDevice().Get(), mapPicture.GetCPUHandle(), &map, &mapPicSizeX, &mapPicSizeY);
     //    hbBarSRV.~GDescriptor();
      //   hbBarUAV.~GDescriptor();
     //    hbBarTex.~GTexture();
     InitializeHPBar();
+
+    InitializeBlurResources();
 }
 
 void UILayer::ChangeDevice(const std::shared_ptr<GDevice>& device)
@@ -750,7 +882,7 @@ void UILayer::ApplyGradientAndStarsEffect(
     const ImVec4& starColor
 )
 {
-    /*     ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
     // Получение координат элемента
     ImVec2 item_min = ImGui::GetItemRectMin();
@@ -792,7 +924,7 @@ void UILayer::ApplyGradientAndStarsEffect(
         ImVec2 p2(center.x - starSize * 0.5f, center.y + starSize * 0.5f);
         ImVec2 p3(center.x + starSize * 0.5f, center.y + starSize * 0.5f);
         draw_list->AddTriangleFilled(p1, p2, p3, ImGui::ColorConvertFloat4ToU32(starColor));
-    }*/
+    }
 }
 
 void UILayer::Render(const std::shared_ptr<GCommandList>& cmdList)
@@ -810,11 +942,11 @@ void UILayer::Render(const std::shared_ptr<GCommandList>& cmdList)
     for (uint16_t i = 0; i < 1; i++)
     {
         currentColorIndex = 0;
-        DrawLeftBar();
-        DrawLeftBottomPanel();
-        DrawRightBar();
+    //    DrawLeftBar();
+     //   DrawLeftBottomPanel();
+      //  DrawRightBar();
         DrawRightTopBar();
-        DrawRightMiddlePanel();
+      //  DrawRightMiddlePanel();
 
         DrawBottomPanel();
     }

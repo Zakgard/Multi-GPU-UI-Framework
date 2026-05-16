@@ -391,7 +391,6 @@ void HybridUIApp::InitDevices()
 
     assets = std::make_shared<AssetsLoader>(primeDevice);
 
-
     for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
     {
         typedRenderer.push_back(

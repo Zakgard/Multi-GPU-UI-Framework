@@ -1,26 +1,25 @@
 // HPBarCompute_Ultimate.hlsl
 cbuffer HPBarCB : register(b0)
 {
-    float2 TextureSize; // Размер текстуры (ширина, высота)
-    float Time; // Глобальное время
-    float Health; // Уровень здоровья (0.0–1.0)
-    float4 ColorStart; // Начальный цвет градиента
-    float4 ColorEnd; // Конечный цвет градиента
-    float SparkleSpeed; // Скорость бликов
-    float SparkleIntensity; // Интенсивность бликов
-    float2 StarPosMin; // Минимальная позиция звёзд (нормализованные)
-    float2 StarPosMax; // Максимальная позиция звёзд (нормализованные)
-    float DistortionPower; // Сила вихревых искажений
-    float GlowIntensity; // Интенсивность свечения
-    float FractalScale; // Масштаб фрактального шума
-    float FillThreshold; // Порог "переполнения" (например, 0.9)
-    float CrackRoughness; // Шероховатость трещин (0.1–0.5)
-    float CrackThickness; // Толщина трещин (0.003–0.01)
+    float2 TextureSize; 
+    float Time; 
+    float Health; 
+    float4 ColorStart; 
+    float4 ColorEnd; 
+    float SparkleSpeed;
+    float SparkleIntensity; 
+    float2 StarPosMin; 
+    float2 StarPosMax; 
+    float DistortionPower; 
+    float GlowIntensity; 
+    float FractalScale;
+    float FillThreshold; 
+    float CrackRoughness; 
+    float CrackThickness; 
 };
 
 RWTexture2D<float4> OutputTexture : register(u0);
 
-// Псевдослучайные числа
 float Rand(float2 uv, float seed)
 {
     return frac(sin(dot(uv + seed, float2(12.9898, 78.233)) * 43758.5453));
@@ -34,7 +33,6 @@ float3 RandColor(float2 uv, float seed)
     return float3(Rand(uv, seed), Rand(uv, seed + 1.0), Rand(uv, seed + 2.0));
 }
 
-// Фрактальный шум (3 октавы)
 float FractalNoise(float2 uv, float scale)
 {
     float value = 0.0;
@@ -49,7 +47,6 @@ float FractalNoise(float2 uv, float scale)
     return value;
 }
 
-// Вихревое искажение
 float2 VortexDistortion(float2 uv, float power)
 {
     float2 center = float2(0.5, 0.5);
@@ -60,7 +57,6 @@ float2 VortexDistortion(float2 uv, float power)
     return uv + vortex * float2(cos(angle), sin(angle));
 }
 
-// Генерация трещин (алгоритм midpoint displacement)
 float GenerateCrack(float2 uv, float seed, float thickness, float roughness)
 {
     float2 startPos = float2(0.0, 0.5);
@@ -82,7 +78,6 @@ float GenerateCrack(float2 uv, float seed, float thickness, float roughness)
     return crack;
 }
 
-// Генерация звёзд с хвостами
 float4 SpawnStars(float2 pixelPos, float seed)
 {
     float starCount = 70.0 + floor(Rand(float2(0.0, seed), seed) * 150.0);
@@ -125,18 +120,15 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
     bool isOverflow = (clampedHealth >= FillThreshold);
     float visualFill = isOverflow ? 1.0 : clampedHealth;
 
-    // Искажение UV (вихрь + шум)
     float2 distortedUV = VortexDistortion(uv, DistortionPower * 0.1);
     distortedUV += FractalNoise(uv * 5.0, FractalScale) * 0.02;
 
     if (distortedUV.x <= visualFill)
     {
-        // Градиент с шумом
         float t = distortedUV.x / visualFill;
         float noise = FractalNoise(distortedUV * 10.0, 2.0) * 0.1;
         outputColor = lerp(ColorStart, ColorEnd, t + noise);
 
-        // Режим переполнения: трещины и усиленная пульсация
         if (isOverflow)
         {
             float crack = GenerateCrack(distortedUV, Time * 0.2, CrackThickness, CrackRoughness);
@@ -152,7 +144,6 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
             outputColor.rgb *= pulse;
         }
 
-        // Блики и звёзды
         float sparkle = pow(abs(FractalNoise(distortedUV * 20.0 + Time * SparkleSpeed, 3.0)), 8.0) * SparkleIntensity;
         outputColor.rgb += float3(sparkle, sparkle, sparkle) * 2.0;
         float4 stars = SpawnStars(pixelPos, Time * 0.1);

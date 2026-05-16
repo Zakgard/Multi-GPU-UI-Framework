@@ -67,6 +67,7 @@ class UILayer
     std::shared_ptr<GTexture> gradientTexture;
 
     GDescriptor skillPicturesDescriptors[SKILL_PICTURES_COUNT];
+    GDescriptor mapPicture;
     GDescriptor uiNavigationPicturesDescriptors[80];
     GDescriptor uiSRVs[80];
     GDescriptor uiInputTexSRVs[80];
@@ -76,6 +77,19 @@ class UILayer
     ComputePSO uiPSOs[80];
     GShader uiShaders[80];
     GShader gradientShader;
+
+    GShader blurShader;
+    ComputePSO blurPSO;
+
+    // Текстуры и дескрипторы для теста блюра (например, для одной иконки)
+    GTexture baseMapTex;
+    GTexture blurredIconTex;
+    GDescriptor blurredIconUAV;
+    GDescriptor blurredIconSRV;
+
+    GTexture blurredIconTex2;
+    GDescriptor blurredIconUAV2;
+    GDescriptor blurredIconSRV2;
 
     UINT groupCountWidth{};
     UINT groupCountHeight{};
@@ -98,6 +112,13 @@ class UILayer
         float Time;           // Новое поле
         float AnimationSpeed; // Новое поле
     };
+
+    struct BlurSettings {
+        uint32_t width;
+        uint32_t height;
+        uint32_t blurRadius;
+        uint32_t padding;
+    };
     // GradientStarConstants shaderConstants;
 
     std::shared_ptr<UIPictruresLoader> loader;
@@ -110,7 +131,11 @@ class UILayer
     int pictureSizeX = 128;
     int pictureSizeY = 128;
 
+    int mapPicSizeX = 256;
+    int mapPicSizeY = 256;
+
     ID3D12Resource* my_textures[200];
+    ID3D12Resource* map;
     ID3D12Resource* uiInputTextures[200];
     ID3D12Resource* bBackText;
     ID3D12RootSignature* rootSignature;
@@ -132,7 +157,7 @@ class UILayer
     void DrawRightMiddlePanel();
     void DrawBottomPanel();
     void AddColorToButton(float glow);
-    void BlurIcon(ImVec2 iconPos, ImVec2 size);
+    void BlurIcon(ImVec2 iconPos, ImVec2 size, const std::shared_ptr<GCommandList>& cmdLis);
     void ApplyGradientAndStarsEffect(
         const ImVec2& size,
         const ImVec4& gradientColor1 = ImVec4(0.0f, 0.0f, 1.0f, 0.3f),
