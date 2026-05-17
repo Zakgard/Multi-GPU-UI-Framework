@@ -481,7 +481,7 @@ namespace PEPEngine::Graphics
         TrackResource(srcRes.Get());
     }
 
-    void GCommandList::CopyResource(const ComPtr<ID3D12Resource>& dstRes, const ComPtr<ID3D12Resource>& srcRes)
+    FORCEINLINE void GCommandList::CopyResource(const ComPtr<ID3D12Resource>& dstRes, const ComPtr<ID3D12Resource>& srcRes)
     {
         TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
         TransitionBarrier(srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);

@@ -88,14 +88,41 @@ void GCrossAdapterResource::Reset()
 
 void GCrossAdapterResource::Resize(const UINT newWidth, const UINT newHeight)
 {
+    if (!isInit) return;
+
     auto desc = primeResource->GetD3D12ResourceDesc();
     desc.Width = newWidth;
     desc.Height = newHeight;
 
+    // Сохраняем устройства и имя перед удалением старых ресурсов
+    auto pDevice = primeResource->GetDevice();
+    auto sDevice = sharedResource->GetDevice();
+    auto resName = primeResource->GetName();
 
-    primeResource = std::make_shared<GResource>(primeResource->GetDevice(), desc, crossAdapterResourceHeap[0],
-                                                primeResource->GetName());
+    // Освобождаем старые ресурсы и кучи!
+    Reset();
 
-    sharedResource = std::make_shared<GResource>(sharedResource->GetDevice(), desc, crossAdapterResourceHeap[1],
-                                                 sharedResource->GetName());
+    // Вычисляем новый размер кучи
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+    UINT64 sizeInBytes;
+    UINT64 totalBytes;
+    pDevice->GetDXDevice()->GetCopyableFootprints(&desc, 0, 1, 0, &layout, nullptr, &sizeInBytes, &totalBytes);
+    UINT64 heapSize = Align(layout.Footprint.RowPitch * layout.Footprint.Height);
+    heapSize = std::max(heapSize, totalBytes);
+
+    // Создаем НОВУЮ кучу на Prime-устройстве
+    CD3DX12_HEAP_DESC heapDesc(heapSize, D3D12_HEAP_TYPE_DEFAULT, 0, D3D12_HEAP_FLAG_SHARED | D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER);
+    ThrowIfFailed(pDevice->GetDXDevice()->CreateHeap(&heapDesc, IID_PPV_ARGS(&crossAdapterResourceHeap[0])));
+
+    // Обмениваемся новым Handle
+    HANDLE heapHandle = nullptr;
+    ThrowIfFailed(pDevice->GetDXDevice()->CreateSharedHandle(crossAdapterResourceHeap[0].Get(), nullptr, GENERIC_ALL, nullptr, &heapHandle));
+    ThrowIfFailed(sDevice->GetDXDevice()->OpenSharedHandle(heapHandle, IID_PPV_ARGS(&crossAdapterResourceHeap[1])));
+    CloseHandle(heapHandle);
+
+    // Создаем новые ресурсы в новых кучах
+    sharedResource = std::make_shared<GResource>(sDevice, desc, crossAdapterResourceHeap[1], resName + L" Shared");
+    primeResource = std::make_shared<GResource>(pDevice, desc, crossAdapterResourceHeap[0], resName);
+
+    isInit = true;
 }
