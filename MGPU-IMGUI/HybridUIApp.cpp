@@ -264,22 +264,11 @@ void HybridUIApp::Draw(const GameTimer& gt)
 
             cmdList->SetRenderTargets(1, &secondDeviceUIBackBufferRTV, 0);
 
-            if (CurrentFrame == 0)
-            {
-                const auto computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
-                UIPath->RenderEffects(computeQueue);
+            const auto computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
+            UIPath->RenderEffects(computeQueue);
+            UIPath->Render(cmdList);
 
-                UIPath->Render(cmdList);
-
-                CurrentFrame = 1;
-            }
-            else
-            {
-                CurrentFrame = 0;
-            }
-
-
-            cmdList->CopyResource(crossAdapterUITexture->GetSharedResource(), secondDeviceUITexture);
+            cmdList->CopyResource(crossAdapterUITexture.GetSharedResource(), secondDeviceUITexture);
 
             cmdList->EndQuery(timestampHeapIndex + 1);
             cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
@@ -292,7 +281,7 @@ void HybridUIApp::Draw(const GameTimer& gt)
         {
             auto cmdList = copyPrimeQueue->GetCommandList();
 
-            cmdList->CopyResource(primeDeviceUITexture, crossAdapterUITexture->GetPrimeResource());
+            cmdList->CopyResource(primeDeviceUITexture, crossAdapterUITexture.GetPrimeResource());
 
             currentFrameResource->PrimeCopyFenceValue = copyPrimeQueue->ExecuteCommandList(cmdList);
         }
@@ -386,9 +375,6 @@ void HybridUIApp::InitDevices()
         secondDevice = otherDevice;
     }
 
-    primeDevice = firstDevice;
-    secondDevice = otherDevice;
-
     assets = std::make_shared<AssetsLoader>(primeDevice);
 
     for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
@@ -397,8 +383,6 @@ void HybridUIApp::InitDevices()
             MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
     }
 
-    primeDevice = firstDevice;
-    secondDevice = otherDevice;
 
     logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
     logQueue.Push(
@@ -610,19 +594,14 @@ void HybridUIApp::InitRenderPaths()
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    secondDeviceUITexture = GTexture(secondDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(),
-        L"Second Device UI Texture");
-
-    desc = MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc();
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
-    // desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    crossAdapterUITexture = std::make_shared<GCrossAdapterResource>(desc, primeDevice, secondDevice,
-        L"Cross Adapter UI");
-
-
     auto optClear = CD3DX12_CLEAR_VALUE(MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc().Format,
         Colors::Black);
+
+    secondDeviceUITexture = GTexture(secondDevice, desc,
+        L"2nd Device UI Tex", TextureUsage::Normalmap, &optClear);
+
+    crossAdapterUITexture = GCrossAdapterResource(desc, primeDevice, secondDevice,
+        L"Cross Adapter UI");
 
     primeDeviceUITexture = GTexture(primeDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(),
         L"Prime Device UI Texture", TextureUsage::RenderTarget, &optClear);
@@ -1395,7 +1374,7 @@ void HybridUIApp::OnResize()
     GTexture::Resize(secondDeviceUITexture, MainWindow->GetClientWidth(), MainWindow->GetClientHeight(), 1);
     secondDeviceUITexture.CreateRenderTargetView(&rtvDesc, &secondDeviceUIBackBufferRTV);
 
-    crossAdapterUITexture->Resize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    crossAdapterUITexture.Resize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 
     if (camera != nullptr)

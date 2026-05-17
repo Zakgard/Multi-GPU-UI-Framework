@@ -12,19 +12,23 @@ namespace PEPEngine::Graphics
     {
     public:
         GResource(const std::wstring& name = L"");
+
         GResource(const std::shared_ptr<GDevice>& device, const D3D12_RESOURCE_DESC& resourceDesc,
                   const std::wstring& name = L"",
                   const D3D12_CLEAR_VALUE* clearValue = nullptr,
                   D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
                   const D3D12_HEAP_PROPERTIES& heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                   D3D12_HEAP_FLAGS heapFlags = D3D12_HEAP_FLAG_NONE);
+
         GResource(const std::shared_ptr<GDevice>& device, const D3D12_RESOURCE_DESC& resourceDesc,
                   const ComPtr<ID3D12Heap>& heap,
                   const std::wstring& name = L"",
                   const D3D12_CLEAR_VALUE* clearValue = nullptr,
                   D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON);
+
         GResource(const std::shared_ptr<GDevice>& device, ComPtr<ID3D12Resource>& resource,
                   const std::wstring& name = L"");
+
         GResource(const GResource& copy);
         GResource(GResource&& move);
 

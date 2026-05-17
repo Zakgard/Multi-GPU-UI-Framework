@@ -48,20 +48,20 @@ namespace PEPEngine::Graphics
         if (clearValue)
         {
             this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
-
-            ThrowIfFailed(device->GetDXDevice()->CreatePlacedResource(
-                heap.Get(),
-                0,
-                &resourceDesc,
-                initState,
-                this->clearValue.get(),
-                IID_PPV_ARGS(&dxResource)
-            ));
-
-            GResourceStateTracker::AddCurrentState(dxResource.Get(), initState);
-
-            SetName(name);
         }
+
+        ThrowIfFailed(device->GetDXDevice()->CreatePlacedResource(
+            heap.Get(),
+            0,
+            &resourceDesc,
+            initState,
+            this->clearValue.get(),
+            IID_PPV_ARGS(&dxResource)
+        ));
+
+        GResourceStateTracker::AddCurrentState(dxResource.Get(), initState);
+
+        SetName(name);
     }
 
     GResource::GResource(const std::shared_ptr<GDevice>& device, ComPtr<ID3D12Resource>& resource,

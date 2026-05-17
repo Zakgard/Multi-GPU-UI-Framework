@@ -423,7 +423,7 @@ void UILayer::AddColorToButton(float glow)
 
 void UILayer::BlurIcon(ImVec2 iconPos, ImVec2 size, const std::shared_ptr<GCommandList>& cmdList)
 {
-    int passes = 100;
+    int passes = 1;
     if (!map || size.x <= 0 || size.y <= 0 || passes <= 0) return;
 
     BlurSettings settings = {};
@@ -503,7 +503,7 @@ ComPtr<ID3D12Resource> CreateUploadBuffer(ID3D12Device* device, UINT64 size)
 
 void UILayer::Update(const std::shared_ptr<GCommandList>& cmdList)
 {
-    GradientNoiseCB par;
+    GradientNoiseCB par{};
     const auto baseCol = baseColors[uiDescriptorCounter];
     const auto ednCol = endColors[uiDescriptorCounter];
     par.ColorStart = XMFLOAT4(baseCol.x, baseCol.y, baseCol.z, baseCol.w);
@@ -521,7 +521,7 @@ void UILayer::Update(const std::shared_ptr<GCommandList>& cmdList)
     cmdList->SetDescriptorsHeap(&uiUAVs[uiDescriptorCounter]);
     cmdList->SetPipelineState(uiPSOs[uiDescriptorCounter]);
 
-    // cmdList->SetRootConstantBufferView(0, params);
+   // cmdList->SetRootConstantBufferView(0, params);
     cmdList->SetRoot32BitConstants(0, sizeof(GradientNoiseCB) / sizeof(float), &par, 0);
     cmdList->SetRootDescriptorTable(1, &uiUAVs[uiDescriptorCounter]);
 
@@ -717,29 +717,6 @@ UILayer::UILayer(const std::shared_ptr<GDevice>& device, const HWND hwnd) : hwnd
 {
     Initialize();
     CreateDeviceObject();
-
-    /* for (uint16_t i = 0; i < 0; i++)
-      {
-          blurDescriptors.push_back(device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, globalCountFrameResources));
-
-          blurFilters.push_back(std::make_shared<BlurFilter>(
-              device->GetDXDevice().Get(),
-              blurDescriptors[i].GetDescriptorHeap()->GetDirectxHeap(),
-              wnd->GetClientWidth(),
-              wnd->GetClientHeight(),
-              DXGI_FORMAT_R8G8B8A8_UNORM,
-              globalCountFrameResources,
-              blurDescriptors[i].GetGPUHandle(),
-              blurDescriptors[i].GetCPUHandle(),
-              device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-          ));
-
-          blurFilters[i]->OnResize(ImVec2(0.0f, 0.0f), ImVec2(1920, 1080));
-
-          currentBlurIndex = i;
-      }*/
-
-      //  currentDeviceName = device->GetName();
 }
 
 
@@ -796,16 +773,12 @@ void UILayer::SetTexture()
 
     for (uint16_t i = 0; i < 30; i++)
     {
-        //   uiSRVs[i].~GDescriptor();
-         //  uiUAVs[i].~GDescriptor();
-           //    uiTexs[i].~GTexture();
         uiTexs[i].Reset();
         InitializeGradientResources();
     }
 
     for (uint16_t i = 0; i < 40; i++)
     {
-        //  skillPicturesDescriptors[i].~GDescriptor();
         skillPicturesDescriptors[i] = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
         loader.get()->LoadTextureFromFile(SKILL_PICURES_PLACEMENTS[i], device->GetDXDevice().Get(), skillPicturesDescriptors[i].GetCPUHandle(), &my_textures[i], &pictureSizeX, &pictureSizeY);
@@ -813,8 +786,6 @@ void UILayer::SetTexture()
 
     for (uint16_t i = 0; i < 1; i++)
     {
-        // InitializeGradientResources();
-    //    uiNavigationPicturesDescriptors[i].~GDescriptor();
         uiNavigationPicturesDescriptors[i] = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
         loader.get()->LoadTextureFromFile(NAVIGATION_ICONS_PLACEMENTS[i], device->GetDXDevice().Get(), uiNavigationPicturesDescriptors[i].GetCPUHandle(), &my_textures[i], &pictureSizeX, &pictureSizeY);
@@ -822,9 +793,6 @@ void UILayer::SetTexture()
 
     mapPicture = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
     loader.get()->LoadTextureFromFile(MAP_PLACEMENT, device->GetDXDevice().Get(), mapPicture.GetCPUHandle(), &map, &mapPicSizeX, &mapPicSizeY);
-    //    hbBarSRV.~GDescriptor();
-     //   hbBarUAV.~GDescriptor();
-    //    hbBarTex.~GTexture();
     InitializeHPBar();
 
     InitializeBlurResources();
@@ -845,31 +813,7 @@ void UILayer::ChangeDevice(const std::shared_ptr<GDevice>& device)
     isShared = !isShared;
     SetupRenderBackends();
     CreateDeviceObject();
-    // SetStyle();
     SetTexture();
-
-    //blurDescriptors.push_back(device->AllocateDescriptors(
-  //      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-  //      globalCountFrameResources));
-
-    // Создаем новый блюр-фильтр (возможно, BlurFilter сам создаёт mBlurMap0, mBlurMap1 и пр.)
-  //  auto blurFilter = std::make_shared<BlurFilter>(
-   //     device->GetDXDevice().Get(),
-   //     blurDescriptors[0].GetDescriptorHeap()->GetDirectxHeap(),
-   //    wnd->GetClientWidth(),
-   //     wnd->GetClientHeight(),
-    //    DXGI_FORMAT_R8G8B8A8_UNORM,
-    //    globalCountFrameResources,
-   //     blurDescriptors[0].GetGPUHandle(),
-   //     blurDescriptors[0].GetCPUHandle(),
-   //     device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
-  //  );
-
-    // Обновляем размеры фильтра (если нужно)
-  //  blurFilter->OnResize(ImVec2(0.0f, 0.0f), ImVec2(wnd->GetClientWidth(), wnd->GetClientHeight()));
-
-    // Добавляем его в массив
-   // blurFilters.push_back(blurFilter);
 }
 
 void UILayer::ApplyGradientAndStarsEffect(

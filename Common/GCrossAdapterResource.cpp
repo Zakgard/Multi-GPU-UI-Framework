@@ -32,7 +32,6 @@ GCrossAdapterResource::GCrossAdapterResource(D3D12_RESOURCE_DESC& desc, const st
 
     ThrowIfFailed(primeDevice->GetDXDevice()->CreateHeap(&heapDesc, IID_PPV_ARGS(&crossAdapterResourceHeap[0])));
 
-
     HANDLE heapHandle = nullptr;
     ThrowIfFailed(primeDevice->GetDXDevice()->CreateSharedHandle(
         crossAdapterResourceHeap[0].Get(),
